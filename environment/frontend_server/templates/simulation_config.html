@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Generative Agents Simulation Controller</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .section {
+            margin-bottom: 25px;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+        }
+        .section h2 {
+            margin-top: 0;
+            color: #555;
+            font-size: 18px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #333;
+            font-weight: 500;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+            display: none;
+        }
+        .status.success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .status.error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .slider-container {
+            margin: 20px 0;
+        }
+        .slider {
+            width: 100%;
+            height: 8px;
+            border-radius: 5px;
+            background: #ddd;
+            outline: none;
+            -webkit-appearance: none;
+        }
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            background: #007bff;
+            cursor: pointer;
+        }
+        .slider::-moz-range-thumb {
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            background: #007bff;
+            cursor: pointer;
+        }
+        .value-display {
+            text-align: center;
+            font-size: 18px;
+            color: #007bff;
+            margin-top: 10px;
+        }
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎮 Generative Agents Simulation Controller</h1>
+
+        <div class="section">
+            <h2>🚀 Simulation Configuration</h2>
+
+            <label for="fork-simulation">Fork Simulation:</label>
+            <select id="fork-simulation" required>
+                <option value="">-- Select Base Simulation --</option>
+                <option value="base_the_ville_isabella_maria_klaus">Isabella, Maria, Klaus (3 agents)</option>
+                <option value="base_the_ville_n25">The Ville (25 agents)</option>
+            </select>
+
+            <label for="new-simulation">New Simulation Name:</label>
+            <input type="text" id="new-simulation" placeholder="e.g., test-simulation-001" required>
+
+            <div class="grid-2">
+                <div>
+                    <label for="step-count">Step Count:</label>
+                    <div class="slider-container">
+                        <input type="range" id="step-count" min="1" max="100" value="10" class="slider">
+                        <div class="value-display"><span id="step-value">10</span> steps = <span id="time-value">100</span> seconds</div>
+                    </div>
+                </div>
+
+                <div>
+                    <label for="speed">Simulation Speed:</label>
+                    <select id="speed">
+                        <option value="1">Slow (1x)</option>
+                        <option value="2" selected>Normal (2x)</option>
+                        <option value="5">Fast (5x)</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>📜 Custom History (Optional)</h2>
+            <label for="history-file">Load History CSV:</label>
+            <input type="file" id="history-file" accept=".csv" placeholder="Leave empty to use defaults">
+            <small>Format: Name,Whisper (semicolon-separated memories)</small>
+        </div>
+
+        <div class="section">
+            <h2>👤 Quick Agent Creator</h2>
+            <label for="agent-name">Agent Name:</label>
+            <input type="text" id="agent-name" placeholder="e.g., Dr. Sarah Chen">
+
+            <label for="agent-traits">Innate Traits:</label>
+            <input type="text" id="agent-traits" placeholder="e.g., curious, analytical, patient">
+
+            <label for="agent-background">Background:</label>
+            <textarea id="agent-background" rows="3" placeholder="Dr. Sarah Chen is a quantum physicist who recently moved to Smallville to work at the university..."></textarea>
+
+            <label for="agent-currently">Current Situation:</label>
+            <input type="text" id="agent-currently" placeholder="currently setting up her new lab">
+
+            <label for="agent-lifestyle">Daily Routine:</label>
+            <input type="text" id="agent-lifestyle" placeholder="wakes at 7am, works 9am-6pm, sleeps at 11pm">
+        </div>
+
+        <div class="section">
+            <h2>🔧 Advanced Options</h2>
+            <label for="debug-mode">
+                <input type="checkbox" id="debug-mode"> Enable Debug Mode
+            </label>
+
+            <label for="save-interval">Save Interval:</label>
+            <select id="save-interval">
+                <option value="10">Every 10 steps</option>
+                <option value="50" selected>Every 50 steps</option>
+                <option value="100">Every 100 steps</option>
+            </select>
+        </div>
+
+        <button type="button" onclick="startSimulation()">🎬 Start Simulation</button>
+
+        <div id="status" class="status"></div>
+    </div>
+
+    <script>
+        // Update step count display
+        const stepSlider = document.getElementById('step-count');
+        const stepValue = document.getElementById('step-value');
+        const timeValue = document.getElementById('time-value');
+
+        stepSlider.oninput = function() {
+            stepValue.textContent = this.value;
+            timeValue.textContent = this.value * 10; // Each step = 10 seconds
+        }
+
+        function showStatus(message, isError = false) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = 'status ' + (isError ? 'error' : 'success');
+            status.style.display = 'block';
+        }
+
+        async function startSimulation() {
+            const forkSim = document.getElementById('fork-simulation').value;
+            const newSim = document.getElementById('new-simulation').value;
+            const stepCount = document.getElementById('step-count').value;
+            const speed = document.getElementById('speed').value;
+
+            if (!forkSim || !newSim) {
+                showStatus("Please fill in all required fields!", true);
+                return;
+            }
+
+            // Prepare configuration data
+            const config = {
+                fork_simulation: forkSim,
+                new_simulation: newSim,
+                steps: parseInt(stepCount),
+                speed: parseInt(speed),
+                history_file: document.getElementById('history-file').files[0]?.name || null,
+                agent_config: {
+                    name: document.getElementById('agent-name').value,
+                    traits: document.getElementById('agent-traits').value,
+                    background: document.getElementById('agent-background').value,
+                    currently: document.getElementById('agent-currently').value,
+                    lifestyle: document.getElementById('agent-lifestyle').value
+                }
+            };
+
+            // Show loading status
+            showStatus('Starting simulation...', false);
+
+            try {
+                // Call API to start simulation
+                const response = await fetch('/api/start_simulation/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(config)
+                });
+
+                const result = await response.json();
+
+                if (result.status === 'success') {
+                    showStatus(`✅ Simulation configuration submitted successfully!\n\n` +
+                              `Fork: ${config.fork_simulation}\n` +
+                              `New simulation: ${config.new_simulation}\n` +
+                              `Steps: ${config.steps}\n` +
+                              `Speed: ${config.speed}x\n\n` +
+                              `Next steps:\n` +
+                              `1. Start the backend server: cd reverie/backend_server && python reverie.py\n` +
+                              `2. Enter '${config.fork_simulation}' when prompted for fork simulation\n` +
+                              `3. Enter '${config.new_simulation}' when prompted for new simulation name\n` +
+                              `4. Type 'run ${config.steps}' to start the simulation`, false);
+                } else {
+                    showStatus(`❌ Error: ${result.message}`, true);
+                }
+            } catch (error) {
+                showStatus(`❌ Network error: ${error.message}. Make sure the Django server is running.`, true);
+            }
+        }
+    </script>
+</body>
+</html>

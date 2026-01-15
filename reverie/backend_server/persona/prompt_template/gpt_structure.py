@@ -1,167 +1,140 @@
 """
 Author: Joon Sung Park (joonspk@stanford.edu)
+Modified for multi-LLM provider support
 
 File: gpt_structure.py
-Description: Wrapper functions for calling OpenAI APIs.
+Description: Wrapper functions for calling LLM APIs (DeepSeek, Kimi, etc.)
 """
 import json
-import random
 import openai
-import time 
+import time
 
 from utils import *
-
-openai.api_key = openai_api_key
 
 def temp_sleep(seconds=0.1):
   time.sleep(seconds)
 
-def ChatGPT_single_request(prompt): 
+def get_active_model_config(model_type="chat"):
+  """
+  Get the configuration for the active model based on type.
+  model_type: "chat" or "reasoner"
+  """
+  if model_type == "reasoner":
+    models_dict = reasoner_models
+  else:
+    models_dict = chat_models
+
+  # Find the first valid model
+  for model_name, config in models_dict.items():
+    if config.get("is_valid", False):
+      return config
+
+  # Fallback to first model in the dictionary
+  first_model = list(models_dict.values())[0]
+  return first_model
+
+def setup_openai_client(model_config):
+  """
+  Configure OpenAI client with the given model configuration.
+  """
+  openai.api_key = model_config["api_key"]
+  openai.api_base = f"{model_config['api_base_url']}/v1"
+  openai.api_type = "open_ai"
+
+# Unified LLM chat interface
+def llm_chat_request(prompt, model_type="chat"):
+  """
+  Unified LLM interface that works with any provider (OpenAI, DeepSeek, etc.)
+  Uses model's default temperature (no manual temperature setting)
+  model_type: "chat" or "reasoner"
+  """
   temp_sleep()
 
-  completion = openai.ChatCompletion.create(
-    model="gpt-3.5-turbo", 
-    messages=[{"role": "user", "content": prompt}]
-  )
-  return completion["choices"][0]["message"]["content"]
+  # Get model configuration
+  model_config = get_active_model_config(model_type)
 
+  # Setup OpenAI client with model-specific config
+  setup_openai_client(model_config)
 
-# ============================================================================
-# #####################[SECTION 1: CHATGPT-3 STRUCTURE] ######################
-# ============================================================================
-
-def GPT4_request(prompt): 
-  """
-  Given a prompt and a dictionary of GPT parameters, make a request to OpenAI
-  server and returns the response. 
-  ARGS:
-    prompt: a str prompt
-    gpt_parameter: a python dictionary with the keys indicating the names of  
-                   the parameter and the values indicating the parameter 
-                   values.   
-  RETURNS: 
-    a str of GPT-3's response. 
-  """
-  temp_sleep()
-
-  try: 
+  try:
     completion = openai.ChatCompletion.create(
-    model="gpt-4", 
-    messages=[{"role": "user", "content": prompt}]
+      model=model_config["model_id"],
+      messages=[{"role": "user", "content": prompt}]
+      # No temperature parameter - use model's default
     )
-    return completion["choices"][0]["message"]["content"]
-  
-  except: 
-    print ("ChatGPT ERROR")
-    return "ChatGPT ERROR"
+    return completion.choices[0].message.content
+
+  except Exception as e:
+    provider_name = model_config.get("api_base_url", "unknown").split("//")[-1].split("/")[0]
+    print(f"{provider_name} ERROR: {e}")
+    return f"{provider_name} ERROR"
+
+# Legacy wrapper functions that now use our unified interface
+def ChatGPT_single_request(prompt):
+  """Legacy function - now uses unified LLM interface"""
+  return llm_chat_request(prompt)
+
+def ChatGPT_request(prompt):
+  """Legacy function - now uses unified LLM interface with error handling"""
+  return llm_chat_request(prompt)
+
+def GPT4_request(prompt):
+  """Legacy function - now uses reasoner model if available"""
+  return llm_chat_request(prompt, model_type="reasoner")
 
 
-def ChatGPT_request(prompt): 
-  """
-  Given a prompt and a dictionary of GPT parameters, make a request to OpenAI
-  server and returns the response. 
-  ARGS:
-    prompt: a str prompt
-    gpt_parameter: a python dictionary with the keys indicating the names of  
-                   the parameter and the values indicating the parameter 
-                   values.   
-  RETURNS: 
-    a str of GPT-3's response. 
-  """
-  # temp_sleep()
-  try: 
-    completion = openai.ChatCompletion.create(
-    model="gpt-3.5-turbo", 
-    messages=[{"role": "user", "content": prompt}]
-    )
-    return completion["choices"][0]["message"]["content"]
-  
-  except: 
-    print ("ChatGPT ERROR")
-    return "ChatGPT ERROR"
-
-
-def GPT4_safe_generate_response(prompt, 
+def llm_safe_generate_response(prompt,
                                    example_output,
                                    special_instruction,
+                                   model_type="chat",
                                    repeat=3,
                                    fail_safe_response="error",
                                    func_validate=None,
                                    func_clean_up=None,
-                                   verbose=False): 
-  prompt = 'GPT-3 Prompt:\n"""\n' + prompt + '\n"""\n'
-  prompt += f"Output the response to the prompt above in json. {special_instruction}\n"
-  prompt += "Example output json:\n"
-  prompt += '{"output": "' + str(example_output) + '"}'
-
-  if verbose: 
-    print ("CHAT GPT PROMPT")
-    print (prompt)
-
-  for i in range(repeat): 
-
-    try: 
-      curr_gpt_response = GPT4_request(prompt).strip()
-      end_index = curr_gpt_response.rfind('}') + 1
-      curr_gpt_response = curr_gpt_response[:end_index]
-      curr_gpt_response = json.loads(curr_gpt_response)["output"]
-      
-      if func_validate(curr_gpt_response, prompt=prompt): 
-        return func_clean_up(curr_gpt_response, prompt=prompt)
-      
-      if verbose: 
-        print ("---- repeat count: \n", i, curr_gpt_response)
-        print (curr_gpt_response)
-        print ("~~~~")
-
-    except: 
-      pass
-
-  return False
-
-
-def ChatGPT_safe_generate_response(prompt, 
-                                   example_output,
-                                   special_instruction,
-                                   repeat=3,
-                                   fail_safe_response="error",
-                                   func_validate=None,
-                                   func_clean_up=None,
-                                   verbose=False): 
-  # prompt = 'GPT-3 Prompt:\n"""\n' + prompt + '\n"""\n'
+                                   verbose=False):
+  """
+  Unified safe response function using modern LLM API.
+  Uses llm_chat_request instead of legacy GPT_request.
+  """
   prompt = '"""\n' + prompt + '\n"""\n'
   prompt += f"Output the response to the prompt above in json. {special_instruction}\n"
   prompt += "Example output json:\n"
   prompt += '{"output": "' + str(example_output) + '"}'
 
-  if verbose: 
-    print ("CHAT GPT PROMPT")
+  if verbose:
+    print ("LLM PROMPT")
     print (prompt)
 
-  for i in range(repeat): 
-
-    try: 
-      curr_gpt_response = ChatGPT_request(prompt).strip()
+  for i in range(repeat):
+    try:
+      curr_gpt_response = llm_chat_request(prompt, model_type=model_type).strip()
       end_index = curr_gpt_response.rfind('}') + 1
       curr_gpt_response = curr_gpt_response[:end_index]
       curr_gpt_response = json.loads(curr_gpt_response)["output"]
 
-      # print ("---ashdfaf")
-      # print (curr_gpt_response)
-      # print ("000asdfhia")
-      
-      if func_validate(curr_gpt_response, prompt=prompt): 
+      if func_validate(curr_gpt_response, prompt=prompt):
         return func_clean_up(curr_gpt_response, prompt=prompt)
-      
-      if verbose: 
-        print ("---- repeat count: \n", i, curr_gpt_response)
+
+      if verbose:
+        print (f"---- repeat count: {i}")
         print (curr_gpt_response)
         print ("~~~~")
 
-    except: 
-      pass
+    except Exception as e:
+      if verbose:
+        print(f"Parse error: {e}")
+      continue
 
-  return False
+  return fail_safe_response
+
+# Legacy wrappers - now use unified function
+def GPT4_safe_generate_response(prompt, *args, **kwargs):
+  """Legacy wrapper - now uses unified LLM interface with reasoner model"""
+  return llm_safe_generate_response(prompt, model_type="reasoner", *args, **kwargs)
+
+def ChatGPT_safe_generate_response(prompt, *args, **kwargs):
+  """Legacy wrapper - now uses unified LLM interface with chat model"""
+  return llm_safe_generate_response(prompt, model_type="chat", *args, **kwargs)
 
 
 def ChatGPT_safe_generate_response_OLD(prompt, 
@@ -274,11 +247,43 @@ def safe_generate_response(prompt,
 
 
 def get_embedding(text, model="text-embedding-ada-002"):
+  """
+  Get embedding for text using the configured embedding model from utils.py.
+  """
   text = text.replace("\n", " ")
-  if not text: 
+  if not text:
     text = "this is blank"
-  return openai.Embedding.create(
-          input=[text], model=model)['data'][0]['embedding']
+
+  # Use configured embedding model from utils.py
+  embedding_config = None
+  for name, config in embedding_models.items():
+    if config.get("is_valid", False):
+      embedding_config = config
+      break
+
+  if not embedding_config:
+    # Fallback: return dummy vector if no embeddings available
+    import numpy as np
+    dummy_vector = np.random.rand(1536).tolist()
+    return dummy_vector
+
+  # Use configured embedding model
+  try:
+    openai.api_key = embedding_config["api_key"]
+    openai.api_base = f"{embedding_config['api_base_url']}/v1"
+    openai.api_type = "open_ai"
+
+    response = openai.Embedding.create(
+      input=[text],
+      model=embedding_config["model_id"]
+    )
+    return response['data'][0]['embedding']
+  except Exception as e:
+    print(f"Embedding ERROR: {e}")
+    # Fallback to dummy vector
+    import numpy as np
+    dummy_vector = np.random.rand(1536).tolist()
+    return dummy_vector
 
 
 if __name__ == '__main__':
