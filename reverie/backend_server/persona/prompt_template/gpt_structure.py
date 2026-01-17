@@ -6,8 +6,16 @@ File: gpt_structure.py
 Description: Wrapper functions for calling LLM APIs (DeepSeek, Kimi, etc.)
 """
 import json
-import openai
 import time
+from pathlib import Path
+
+import openai
+
+# Fix import path issue - add backend_server to path
+backend_server_path = Path(__file__).parent.parent.parent.absolute()
+import sys
+if str(backend_server_path) not in sys.path:
+    sys.path.insert(0, str(backend_server_path))
 
 from utils import chat_models, reasoner_models, embedding_models
 
@@ -36,10 +44,18 @@ def get_active_model_config(model_type="chat"):
 def setup_openai_client(model_config):
   """
   Configure OpenAI client with the given model configuration.
+  Returns a client instance for the new OpenAI v1.x+ API.
   """
-  openai.api_key = model_config["api_key"]
-  openai.api_base = f"{model_config['api_base_url']}/v1"
-  openai.api_type = "open_ai"
+  api_base = model_config['api_base_url']
+  # Check if api_base already ends with /v1
+  if not api_base.endswith('/v1'):
+    api_base = f"{api_base}/v1"
+
+  client = openai.OpenAI(
+    api_key=model_config["api_key"],
+    base_url=api_base
+  )
+  return client
 
 # Unified LLM chat interface
 def llm_chat_request(prompt, model_type="chat"):
@@ -54,10 +70,10 @@ def llm_chat_request(prompt, model_type="chat"):
   model_config = get_active_model_config(model_type)
 
   # Setup OpenAI client with model-specific config
-  setup_openai_client(model_config)
+  client = setup_openai_client(model_config)
 
   try:
-    completion = openai.ChatCompletion.create(
+    completion = client.chat.completions.create(
       model=model_config["model_id"],
       messages=[{"role": "user", "content": prompt}]
       # No temperature parameter - use model's default
@@ -220,15 +236,21 @@ def get_embedding(text):
 
   # Use configured embedding model
   try:
-    openai.api_key = embedding_config["api_key"]
-    openai.api_base = f"{embedding_config['api_base_url']}/v1"
-    openai.api_type = "open_ai"
+    api_base = embedding_config['api_base_url']
+    # Check if api_base already ends with /v1
+    if not api_base.endswith('/v1'):
+      api_base = f"{api_base}/v1"
 
-    response = openai.Embedding.create(
+    client = openai.OpenAI(
+      api_key=embedding_config["api_key"],
+      base_url=api_base
+    )
+
+    response = client.embeddings.create(
       input=[text],
       model=embedding_config["model_id"]
     )
-    return response['data'][0]['embedding']
+    return response.data[0].embedding
   except Exception as e:
     print(f"Embedding ERROR: {e}")
     # Fallback to dummy vector

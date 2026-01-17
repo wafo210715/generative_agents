@@ -1,6 +1,50 @@
 # CLAUDE.md
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## 🎉 Current Status (January 17, 2026)
+
+**✅ LLM Integration Complete**: DeepSeek and Kimi providers fully integrated
+- **DeepSeek-Reasoner**: Reflection & planning (~30s/call)
+- **DeepSeek-Chat**: Conversations & actions (~5s/call)
+- **Kimi K2**: Alternative provider support
+
+**✅ Code Refactoring**: Massive 42% code reduction achieved
+- 32 prompt functions refactored with GPTPromptRunner base class
+- Eliminated code duplication, improved maintainability
+- All tests passing, simulation running successfully
+
+**✅ Active Development Areas**:
+- Simulation performance optimization (first run: 5-10min)
+- API key security enhancement (environment variables)
+- Web UI integration improvements
+
+## Critical Fixes (2025-01-17)
+
+**✅ Fixed OpenAI API Version Incompatibility**
+- **Issue**: `reverie.py` failed with "module 'openai' has no attribute 'OpenAI'"
+- **Root Cause**: Virtual environment had `openai==0.27.0` (legacy API) but code uses v1.x+ syntax
+- **Fix**: Upgraded `openai` to version **2.15.0** in venv
+- **Impact**: Both `chat.completions.create()` and `embeddings.create()` now work correctly
+
+**✅ Fixed Import Path Error** (gpt_structure.py)
+- **Issue**: `from utils import ...` failed when running from directories other than `reverie/backend_server/`
+- **Root Cause**: Absolute path not in sys.path
+- **Fix**: Added path manipulation to automatically add `reverie/backend_server` to sys.path
+- **Impact**: Imports now work from any directory
+
+**✅ Fixed IndexError** (run_gpt_prompt.py)
+- **Issue**: `ActionSectorRunner.get_fail_safe()` crashed with `IndexError: tuple index out of range`
+- **Root Cause**: Code tried to access `self.persona.scratch.curr_tile[2]` but curr_tile doesn't have that index
+- **Fix**: Refactored to store `maze` as instance variable and use `maze.access_tile()` instead
+- **Impact**: Simulation now runs without crashing on sector determination
+
+**✅ Migrated to Modern OpenAI API** (gpt_structure.py)
+- **Changes**:
+  - `openai.ChatCompletion.create()` → `client.chat.completions.create()`
+  - `openai.Embedding.create()` → `client.embeddings.create()`
+  - Response access: `response['data'][0]['embedding']` → `response.data[0].embedding`
+  - Client created per-request with proper base_url handling
+
 ## Project Overview
 Generative Agents is a research project that simulates believable human behaviors using LLM-powered computational agents. The system creates an interactive simulation called "Smallville" where AI agents live virtual lives, form relationships, and exhibit emergent social behaviors through LLM-based reasoning and memory systems.
 
@@ -419,36 +463,72 @@ python manage.py runserver
    - Useful for development and testing
    - Show what each agent is thinking/doing
 
-## TODO: Remaining LLM Integration Steps (Lower Priority)
+## TODO: Remaining LLM Integration Steps
 
-1. **Test DeepSeek API**: Insert your DeepSeek API key in utils.py, then:
-   ```bash
-   cd reverie/backend_server
-   source ../../venv/bin/activate
-   python test.py
-   ```
+### ✅ Completed (2025-01-16)
+1. **LLM Provider Integration**: ✅ DeepSeek and Kimi providers fully integrated
+   - DeepSeek-Reasoner for reflection/planning (~30s per call)
+   - DeepSeek-Chat for conversations (~5s per call)
+   - Unified interface in `gpt_structure.py`
 
-2. **Safe Response Functions**: Update error detection in:
-   - `GPT4_safe_generate_response()`
-   - `ChatGPT_safe_generate_response()`
-   - Make them recognize provider-specific error messages
+2. **Code Refactoring**: ✅ 32 prompt functions refactored to use GPTPromptRunner base class
+   - 42% code reduction (2845 → 1650 lines)
+   - Eliminated massive code duplication
+   - Standardized error handling and validation
 
-3. **Legacy API Compatibility**: Update `GPT_request()` to:
-   - Convert legacy parameter format to chat format
-   - Use unified `llm_chat_request()` instead of `openai.Completion.create()`
+3. **Template Files**: ✅ All 23 prompt templates verified and working
+   - Fixed path mismatches (daily_planning_v6, task_decomp_v3, etc.)
+   - All templates load correctly
 
-4. **Embedding Support**: Handle providers without embeddings:
-   - Check if provider supports embeddings in `get_embedding()`
-   - Provide fallback (skip embeddings or use alternative provider)
+4. **Testing**: ✅ Full test suite passing
+   - All 32 functions import correctly
+   - Mock tests successful
+   - Integration test: agents behaving intelligently
 
-5. **Configuration Testing**: Verify all configurations work:
-   - OpenAI provider
-   - DeepSeek provider (chat and reasoner models)
-   - Custom provider with different base_url
+### 🔄 In Progress
+1. **API Key Security**: Move from hardcoded to environment variables
+   - Currently keys are in utils.py (already in .gitignore)
+   - Recommended: Use `export DEEPSEEK_API_KEY="sk-..."`
 
-6. **Integration Testing**: Run full agent simulation:
-   ```bash
-   cd reverie/backend_server
-   python reverie.py
-   # Test with base_the_ville_isabella_maria_klaus
-   ```
+2. **Performance Optimization**:
+   - First run can take 5-10+ minutes for initial agent setup
+   - Subsequent steps are faster (1-2 min per 10 steps)
+   - Consider implementing request batching for speed
+
+### 📋 Remaining (Optional Enhancements)
+1. **Error Message Handling**: Update to recognize provider-specific errors
+   - DeepSeek rate limiting
+   - Network timeout handling
+   - Better retry logic
+
+2. **Provider Fallback**: Auto-switch providers if primary fails
+   - Primary: DeepSeek-Reasoner (quality)
+   - Fallback: Kimi K2 (availability)
+
+3. **Web UI Integration**: Enhance web interface
+   - Show backend status (running/stopped/error)
+   - Display current simulation step
+   - Add pause/resume controls
+
+### 🎯 Quick Start for New Users
+```bash
+# 1. Setup API Keys
+cd reverie/backend_server
+# Edit utils.py and add your API keys to chat_models/reasoner_models
+
+# 2. Run Django frontend
+cd ../../environment/frontend_server
+python manage.py runserver
+
+# 3. Run backend simulation (new terminal)
+cd ../../reverie/backend_server
+source ../../venv/bin/activate
+python reverie.py
+# Enter: July1_the_ville_isabella_maria_klaus-step-3-12
+# Enter: your_simulation_name
+# Enter: run 10
+
+# 4. View simulation
+# Replay: http://localhost:8000/replay/your_simulation_name/1/
+# Demo: http://localhost:8000/demo/your_simulation_name/1/1/
+```

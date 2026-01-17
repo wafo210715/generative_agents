@@ -585,16 +585,21 @@ class ActionSectorRunner(GPTPromptRunner):
     return True
 
   def get_fail_safe(self):
-    # Get accessible sectors for validation
-    act_world = f"{self.persona.scratch.curr_tile[2]}"  # Assuming curr_tile has world info
-    accessible_sectors = self.persona.s_mem.get_str_accessible_sectors(act_world)
-    if accessible_sectors:
-      sectors = [s.strip() for s in accessible_sectors.split(",")]
-      return random.choice(sectors)
-    return "kitchen"
+    # Get accessible sectors for validation using stored maze
+    if hasattr(self, 'maze') and self.maze:
+      act_world = f"{self.maze.access_tile(self.persona.scratch.curr_tile)['world']}"
+      accessible_sectors = self.persona.s_mem.get_str_accessible_sectors(act_world)
+      if accessible_sectors:
+        sectors = [s.strip() for s in accessible_sectors.split(",")]
+        return random.choice(sectors)
+    return self.persona.scratch.living_area.split(":")[1]
 
-  def run(self, action_description, maze, *args, **kwargs):
-    output, metadata = super().run(action_description, maze, *args, **kwargs)
+  def run(self, action_description, maze, *args, model_type="chat", repeat=5, **kwargs):
+    # Store maze as instance variable for get_fail_safe to access
+    self.maze = maze
+
+    # Call parent's run method
+    output, metadata = super().run(action_description, maze, *args, model_type=model_type, repeat=repeat, **kwargs)
 
     # Validate output is in accessible sectors
     act_world = f"{maze.access_tile(self.persona.scratch.curr_tile)['world']}"
