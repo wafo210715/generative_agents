@@ -1,10 +1,19 @@
 reverie/backend_server/utils.py
 frontend_server/settings/local.py
-storage/*
+# Storage folder - ignore all simulation runs except base simulations
+environment/frontend_server/storage/**/*
 static_dirs/*
 
-!storage/base_the_ville_isabella_maria_klaus/*
-!storage/base_the_ville_n25/*
+# Keep base simulation data
+!environment/frontend_server/storage/base_the_ville_isabella_maria_klaus/
+!environment/frontend_server/storage/base_the_ville_n25/
+
+# Keep JSON files in base simulations
+!environment/frontend_server/storage/base_the_ville_isabella_maria_klaus/**/*.json
+!environment/frontend_server/storage/base_the_ville_n25/**/*.json
+
+# Ignore temp storage JSON files
+environment/frontend_server/temp_storage/*.json
 
 bin/
 include/

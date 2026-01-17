@@ -295,15 +295,15 @@ def update_environment(request):
   return JsonResponse(response_data)
 
 
-def path_tester_update(request): 
+def path_tester_update(request):
   """
-  Processing the path and saving it to path_tester_env.json temp storage for 
-  conducting the path tester. 
+  Processing the path and saving it to path_tester_env.json temp storage for
+  conducting the path tester.
 
   ARGS:
     request: Django request
-  RETURNS: 
-    HttpResponse: string confirmation message. 
+  RETURNS:
+    HttpResponse: string confirmation message.
   """
   data = json.loads(request.body)
   camera = data["camera"]
@@ -312,6 +312,88 @@ def path_tester_update(request):
     outfile.write(json.dumps(camera, indent=2))
 
   return HttpResponse("received")
+
+
+def simulation_config(request):
+  """
+  Renders the simulation configuration page where users can:
+  - Select a base simulation to fork
+  - Enter a new simulation name
+  - Upload custom history files
+  - Configure simulation parameters
+  - Create new agents
+
+  ARGS:
+    request: Django request
+  RETURNS:
+    HttpResponse: rendered simulation_config.html template
+  """
+  context = {}
+  template = "simulation_config.html"
+  return render(request, template, context)
+
+
+def api_start_simulation(request):
+  """
+  API endpoint to start a new simulation based on configuration from the web UI.
+
+  ARGS:
+    request: Django request with JSON body containing:
+      - fork_simulation: base simulation to fork
+      - new_simulation: name for new simulation
+      - steps: number of steps to run
+      - speed: simulation speed multiplier
+      - history_file: optional custom history CSV
+      - agent_config: optional agent creation parameters
+
+  RETURNS:
+    JsonResponse: status and message
+  """
+  if request.method != "POST":
+    return JsonResponse({"status": "error", "message": "POST method required"}, status=405)
+
+  try:
+    data = json.loads(request.body)
+
+    # Extract configuration
+    fork_sim = data.get("fork_simulation")
+    new_sim = data.get("new_simulation")
+    steps = data.get("steps", 10)
+    speed = data.get("speed", 2)
+
+    if not fork_sim or not new_sim:
+      return JsonResponse({
+        "status": "error",
+        "message": "fork_simulation and new_simulation are required"
+      }, status=400)
+
+    # For now, return configuration that would be used
+    # In a full implementation, this would trigger the simulation start
+    config = {
+      "fork_simulation": fork_sim,
+      "new_simulation": new_sim,
+      "steps": steps,
+      "speed": speed,
+      "history_file": data.get("history_file"),
+      "agent_config": data.get("agent_config"),
+      "message": "Configuration received. In a full implementation, this would start the simulation."
+    }
+
+    return JsonResponse({
+      "status": "success",
+      "config": config
+    })
+
+  except json.JSONDecodeError:
+    return JsonResponse({
+      "status": "error",
+      "message": "Invalid JSON in request body"
+    }, status=400)
+  except Exception as e:
+    return JsonResponse({
+      "status": "error",
+      "message": f"Error processing request: {str(e)}"
+    }, status=500)
 
 
 
